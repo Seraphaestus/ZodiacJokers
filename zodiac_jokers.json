@@ -1,0 +1,16 @@
+{
+	"id": "amaryllis_zodiac",
+	"name": "Zodiac Jokers",
+	"display_name": "Zodiac Jokers",
+	"author": ["Amaryllis"],
+	"description": "Adds 15 Zodiac-themed Jokers and 1 showcase Zodiac Deck (base deck is renamed Syzygy Deck)",
+	"prefix": "amaryllis_zodiac",
+	"main_file": "src/main.lua",
+	"priority": 1,
+	"badge_colour": "C300A4",
+	"badge_text_colour": "FFFFFF",
+	"version": "1.0.0",
+	"dependencies": [
+		"Steamodded (>=1.0.0~BETA-0404a)" 
+	]
+}

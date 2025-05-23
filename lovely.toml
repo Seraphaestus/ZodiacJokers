@@ -1,0 +1,283 @@
+
+[manifest]
+version = "1.0.0"
+dump_lua = true
+priority = 0
+
+
+# Documentation:
+
+# amaryllis_card_placed context for when cards are drawn to hand, added to deck, etc.
+#   context = { amaryllis_card_placed = card, cardarea = { G.hand, G.deck, G.jokers }, stay_flipped: bool, in_round: bool }
+
+# amaryllis_money_changed context for when money is won or lost
+#   context { amaryllis_money_changed = delta_amount }
+
+# amaryllis_remove_card context for when a card is destroyed
+#   context { amaryllis_remove_card = delta_amount, cardarea: CardArea }
+
+# consumable_used_again check_for_unlock type when same consumable is used twice in a row
+#   args { type = 'consumable_used_again', consumable: key }
+
+# This mod uses 'at' replacement for:
+#     -- fixing a vanilla bug where using a Negative Emperor / High Priestess can overflow consumable slots
+#     -- for wrapping the "pinned" property (used in vanilla only for the Dagger challenge) in a sticker for aesthetics
+
+
+# Gemini: send check_for_unlock type = 'consumable_used_again'
+[[patches]]
+[patches.pattern]
+target = 'card.lua'
+pattern = '''
+function Card:use_consumeable(area, copier)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+    if self.config.center_key == G.GAME.last_tarot_planet and self.config.center_key ~= nil then
+        check_for_unlock({type = 'consumable_used_again', consumable = self.config.center_key})
+    end
+'''
+
+# Gemini: patch vanilla bug where using a Negative Emperor / High Priestess can overflow the consumable slots
+# we just wait an extra little bit for the consumable slots to update properly from the removed negative
+[[patches]]
+[patches.pattern]
+target = 'card.lua'
+pattern = '''
+for i = 1, math.min((self.ability.consumeable.tarots or self.ability.consumeable.planets), G.consumeables.config.card_limit - #G.consumeables.cards) do
+'''
+position = 'at'
+match_indent = true
+payload = '''
+for i = 1, math.min((self.ability.consumeable.tarots or self.ability.consumeable.planets), G.consumeables.config.card_limit - #G.consumeables.cards - ((self.edition and self.edition.negative) and 1 or 0)) do
+'''
+
+
+# Virgo: set virgo_card
+[[patches]]
+[patches.pattern]
+target = 'game.lua'
+pattern = '''
+reset_idol_card()
+'''
+position = 'before'
+match_indent = true
+payload = '''
+reset_virgo_card()
+'''
+[[patches]]
+[patches.pattern]
+target = 'functions/state_events.lua'
+pattern = '''
+reset_idol_card()
+'''
+position = 'after'
+match_indent = true
+payload = '''
+reset_virgo_card()
+'''
+
+# Virgo: send context.amaryllis_card_placed calculation to jokers when a card is emplaced
+[[patches]]
+[patches.pattern]
+target = 'cardarea.lua'
+pattern = '''
+function CardArea:emplace(card, location, stay_flipped*
+'''
+position = 'after'
+match_indent = true
+payload = '''
+    if G.jokers then
+        local context = { amaryllis_card_placed = card, cardarea = self, stay_flipped = stay_flipped, in_round = G.GAME.facing_blind }
+        for i = 1, #G.jokers.cards do
+            G.jokers.cards[i]:calculate_joker(context)
+        end
+    end
+'''
+
+
+
+# Libra: add way to get card loc_vars without actually generating any ui
+[[patches]]
+[patches.pattern]
+target = 'card.lua'
+pattern = '''
+return generate_card_ui(self.config.center, nil, loc_vars, card_type, badges, hide_desc, main_start, main_end*
+'''
+position = 'before'
+match_indent = true
+payload = '''
+if self.loc_vars_return_only then
+    self.loc_vars_return_only = nil
+    return loc_vars
+end
+'''
+
+
+
+# Sagittarius: consistency with Pinned sticker
+[[patches]]
+[patches.pattern]
+target = 'functions/UI_definitions.lua'
+pattern = '''
+if v.pinned then card.pinned = true end
+'''
+position = 'at'
+match_indent = true
+payload = '''
+if v.pinned then card:add_sticker("amaryllis_zodiac_pinned", true) end
+'''
+[[patches]]
+[patches.pattern]
+target = 'game.lua'
+pattern = '''
+if v.pinned then _joker.pinned = true end
+'''
+position = 'at'
+match_indent = true
+payload = '''
+if v.pinned then _joker:add_sticker("amaryllis_zodiac_pinned", true) end
+'''
+
+
+
+# Capricorn: send context.amaryllis_remove_card calculation to jokers when a card is destroyed
+[[patches]]
+[patches.pattern]
+target = 'card.lua'
+pattern = '''
+function Card:remove()
+'''
+position = 'after'
+match_indent = true
+payload = '''
+if G.jokers and (self.area == G.hand or self.added_to_deck) and not G.CONTROLLER.locks.selling_card and not (self.ability.consumeable and G.CONTROLLER.locks.use) then
+    for _, joker in pairs(G.jokers.cards) do
+        joker:calculate_joker({ amaryllis_remove_card = self, cardarea = self.area })
+    end
+end
+'''
+
+# Capricorn: incr career_stat 'c_amaryllis_jokers_destroyed' when a joker is destroyed
+[[patches]]
+[patches.pattern]
+target = 'card.lua'
+pattern = '''
+function Card:start_dissolve(dissolve_colours, silent, dissolve_time_fac, no_juice)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+    if self.getting_sliced and self.ability.set == 'Joker' then
+        inc_career_stat('c_amaryllis_jokers_destroyed', 1)
+    end
+'''
+
+
+
+# Aquarius: incr career_stat 'c_amaryllis_retriggered_rank' when a card of a given rank is retriggered
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/utils.lua"]'
+pattern = '''
+if reps[j] ~= 1 then
+'''
+position = 'after'
+match_indent = true
+times = 2
+payload = '''
+    incr_amaryllis_retriggered_rank(card.base.value)
+'''
+
+
+
+# Cetus: send context.amaryllis_money_changed calculation to jokers when money is changed
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = '''
+function ease_dollars(mod, instant)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+    if mod ~= 0 then
+        for _, joker in pairs(G.jokers.cards) do
+            joker:calculate_joker({ amaryllis_money_changed = mod })
+        end
+    end
+'''
+
+
+
+# Zodiac Deck: Have to patch our own way to create cards without discovering them, because SMODS' doesn't work, just falls back to discoverable is discovery = false
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = '''
+function unlock_card(card)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+    if SMODS.amaryllis_bypass_unlock_card then return end
+'''
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = '''
+function discover_card(card)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+    if SMODS.amaryllis_bypass_discover_card then return end
+'''
+
+
+
+# Deprecated (old Ophiuchus): call on_localize function on jokers when text is localized
+#[[patches]]
+#[patches.pattern]
+#target = 'functions/misc_functions.lua'
+#pattern = '''
+#if ret_string then return ret_string end
+#'''
+#position = 'before'
+#match_indent = true
+#payload = '''
+#if G.jokers and G.jokers.cards then
+#    for _, joker in pairs(G.jokers.cards) do
+#        if joker.config.center.on_localize and type(joker.config.center.on_localize) == 'function' then
+#            local ret = joker.config.center:on_localize(joker, loc_target, args)
+#            if ret and (ret.text or ret.name or ret.unlock) then
+#                local new_loc_target = {}
+#                for k, v in pairs(loc_target) do new_loc_target[k] = v end
+#                loc_target = new_loc_target
+#
+#                if ret.text then
+#                    loc_target.text = ret.text
+#                    loc_target.text_parsed = {}
+#                    for _, line in ipairs(loc_target.text) do loc_target.text_parsed[#loc_target.text_parsed + 1] = loc_parse_string(line) end
+#                end
+#                if ret.name then
+#                    loc_target.name = ret.name
+#                    loc_target.name_parsed = {}
+#                    for _, line in ipairs(type(loc_target.name) == 'table' and loc_target.name or {loc_target.name}) do loc_target.name_parsed[#loc_target.name_parsed + 1] = loc_parse_string(line) end
+#                end
+#                if ret.unlock then
+#                    loc_target.unlock = ret.unlock
+#                    loc_target.unlock_parsed = {}
+#                    for _, line in ipairs(loc_target.unlock) do loc_target.unlock_parsed[#loc_target.unlock_parsed + 1] = loc_parse_string(line) end
+#                end
+#            end
+#
+#            if ret and ret.vars then
+#                args.vars = args.vars or {}
+#                for i, arg in ipairs(ret.vars) do args.vars[i] = arg end
+#            end
+#        end
+#    end
+#end
+#'''
