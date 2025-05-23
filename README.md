@@ -1,7 +1,9 @@
-Zodiac Jokers
+# Zodiac Jokers
 
 A small content mod adding 15 Jokers, with (disableable) unlock conditions and unique, interesting, thematic and (hopefully) balanced effects  
 Also adds a (disableable) Zodiac deck to showcase them, with the vanilla deck of the same name being renamed to the Syzygy Deck
+
+# Content
 
 <details><summary>Joker abilities (click if you don't want to discover them in play)</summary>
 
