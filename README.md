@@ -47,5 +47,5 @@ oɹ Cetus: Gains 1 Mult per $1 lost. Cost raises every 10 Mult.
 
 </details>
 
-Zodiac Deck: Start each ante with a different pinned Eternal Zodiac Joker.  
+Zodiac Deck: Start each ante with a different Eternal Zodiac Joker.  
 *(Effectively 4 Joker slots, 5th is occupied by a random Zodiac Joker, which changes to a different one at the end of each ante. This does not unlock or discover the Joker for the collection)*
