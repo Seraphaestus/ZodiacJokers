@@ -1309,11 +1309,11 @@ SMODS.Joker{ -- Spring Water
     yes_pool_flag = "amaryllis_aquarius_added",
 
     set_ability = function(self, card, initial, delay_sprites)
-        if not card.ability.extra.rank then
+        if not card.ability.extra.rank and G.playing_cards then
             local valid_ranks = {}
             for _, other_card in ipairs(G.playing_cards) do
                 if other_card.ability.effect ~= "Stone Card" then
-                    valid_ranks[#valid_ranks + 1] = { rank = other_card.base.value, id = other_card.base.id }
+                    valid_ranks[#valid_ranks + 1] = { key = other_card.base.value, id = other_card.base.id }
                 end
             end
             local rank = pseudorandom_element(next(valid_ranks) and valid_ranks or SMODS.Ranks, pseudoseed("spring_water_rank"))
@@ -1682,8 +1682,6 @@ if amaryllis_zodiac_config.enable_deck then
 
         order = 16,
         unlocked = true, discovered = true,
-
-        config = { consumables = { "c_ankh" } },
 
         apply = function(self, back)
             -- Add special zodiac joker
